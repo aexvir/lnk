@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/aexvir/lnk/api"
 )
 
 // Memory is an ephemeral storage implementation.
 // All the links are stored in memory and indexed by their slug.
 type Memory struct {
-	links   map[string]*api.Link
+	links   map[string]*Link
 	slugger SlugGenerator
 
 	mutex sync.RWMutex
@@ -24,7 +22,7 @@ const maxrecursion = 5
 // clustomized via MemoryOptions.
 func NewMemoryStorage(opts ...MemoryOption) (*Memory, error) {
 	ms := Memory{
-		links: make(map[string]*api.Link, 0),
+		links: make(map[string]*Link, 0),
 	}
 
 	for _, opt := range opts {
@@ -47,7 +45,7 @@ func (m *Memory) CreateLink(target string, slug *string) (string, error) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	if slug == nil {
+	if slug == nil || *slug == "" {
 		s, err := m.genslug()
 		if err != nil {
 			return "", err
@@ -55,7 +53,7 @@ func (m *Memory) CreateLink(target string, slug *string) (string, error) {
 		slug = &s
 	}
 
-	m.links[*slug] = &api.Link{
+	m.links[*slug] = &Link{
 		Slug:      *slug,
 		Target:    target,
 		Histogram: make(map[string]uint64),
@@ -65,7 +63,7 @@ func (m *Memory) CreateLink(target string, slug *string) (string, error) {
 }
 
 // GetLink returns the Link object associated with the specified slug.
-func (m *Memory) GetLink(slug string) (link *api.Link, err error) {
+func (m *Memory) GetLink(slug string) (link *Link, err error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -89,11 +87,11 @@ func (m *Memory) DeleteLink(slug string) error {
 }
 
 // AllLinks returns all links stored in the database.
-func (m *Memory) AllLinks() []*api.Link {
+func (m *Memory) AllLinks() []*Link {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	result := make([]*api.Link, 0, len(m.links))
+	result := make([]*Link, 0, len(m.links))
 	for _, link := range m.links {
 		result = append(result, link)
 	}

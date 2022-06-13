@@ -1,23 +1,84 @@
 package svc
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
 	"path"
 
-	"github.com/aexvir/lnk/api"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/aexvir/lnk/internal/logging"
+	"github.com/aexvir/lnk/internal/storage"
+	"github.com/aexvir/lnk/internal/translation"
+	"github.com/aexvir/lnk/proto"
 )
 
 type LinkStore interface {
 	CreateLink(target string, slug *string) (string, error)
-	GetLink(slug string) (*api.Link, error)
+	GetLink(slug string) (*storage.Link, error)
 	DeleteLink(slug string) error
-	AllLinks() []*api.Link
+	AllLinks() []*storage.Link
 
 	GetTarget(slug string) (string, error)
 	RegisterHit(slug string)
+}
+
+type LinksService struct {
+	proto.UnimplementedLinksServer
+
+	store LinkStore
+	log   *logging.Logger
+}
+
+func NewLinksService(store LinkStore) LinksService {
+	log := logging.NewLogger("lnk.links")
+	return LinksService{
+		store: store,
+		log:   log,
+	}
+}
+
+func (lgs *LinksService) ListLinks(ctx context.Context, _ *emptypb.Empty) (*proto.LinkList, error) {
+	lgs.log.Write("ListLinks", "_")
+	links := lgs.store.AllLinks()
+
+	var list proto.LinkList
+	for _, link := range links {
+		list.Links = append(list.Links, translation.DbLinkToProto(link))
+	}
+
+	return &list, nil
+}
+
+func (lgs *LinksService) CreateLink(ctx context.Context, req *proto.CreateLinkReq) (*proto.LinkId, error) {
+	lgs.log.Write("CreateLink", req.String())
+
+	link, err := lgs.store.CreateLink(req.Target, req.Slug)
+	if err != nil {
+		return nil, fmt.Errorf("error creating link: %w", err)
+	}
+
+	return &proto.LinkId{
+		Slug: link,
+	}, nil
+}
+
+func (lgs *LinksService) GetLink(ctx context.Context, req *proto.LinkId) (*proto.LinkDetails, error) {
+	lgs.log.Write("GetLink", "slug: %s", req.Slug)
+
+	link, err := lgs.store.GetLink(req.Slug)
+	if err != nil {
+		return nil, fmt.Errorf("error getting link: %w", err)
+	}
+
+	return translation.DbLinkToProto(link), nil
+}
+
+func (lgs *LinksService) DeleteLink(ctx context.Context, req *proto.LinkId) (*emptypb.Empty, error) {
+	lgs.log.Write("DeleteLink", "slug: %s", req.Slug)
+
+	return nil, lgs.store.DeleteLink(req.Slug)
 }
 
 // LinkRedirectHandler fetches a shortened link by slug and if there is a link
@@ -42,86 +103,6 @@ func LinkRedirectHandler(store LinkStore) http.HandlerFunc {
 
 		store.RegisterHit(slug)
 		http.Redirect(w, r, target, http.StatusTemporaryRedirect)
-	}
-}
-
-// LinkMgmtHandler performs different actions depending on the request method.
-// The actions match the expected restful verb.
-func LinkMgmtHandler(store LinkStore) http.HandlerFunc {
-	log := logging.NewLogger("lnk.mgmt")
-
-	return func(w http.ResponseWriter, r *http.Request) {
-		slug := path.Base(r.URL.Path)
-
-		switch r.Method {
-		case http.MethodGet:
-			log.Write("get", "slug: %s", slug)
-
-			if slug == "links" { // /api/links
-				w.WriteHeader(http.StatusOK)
-				err := json.NewEncoder(w).Encode(store.AllLinks())
-				if err != nil {
-					log.Write("error", err.Error())
-					respond(w, http.StatusInternalServerError, err.Error())
-					return
-				}
-				return
-			}
-
-			link, err := store.GetLink(slug)
-			if err != nil {
-				log.Write("error", err.Error())
-				respond(w, http.StatusNotFound, "link not found: %s", slug)
-				return
-			}
-
-			w.WriteHeader(http.StatusOK)
-			err = json.NewEncoder(w).Encode(link)
-			if err != nil {
-				log.Write("error", err.Error())
-				respond(w, http.StatusInternalServerError, err.Error())
-			}
-
-		case http.MethodPost:
-			var payload api.CreateLinkReq
-			err := json.NewDecoder(r.Body).Decode(&payload)
-			if err != nil {
-				log.Write("error", err.Error())
-				respond(w, http.StatusBadRequest, "invalid payload: %s", err.Error())
-				return
-			}
-
-			slug, err := store.CreateLink(payload.Target, payload.Slug)
-			if err != nil {
-				log.Write("error", err.Error())
-				respond(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-
-			ret := api.LinkResp{Link: slug}
-			w.WriteHeader(http.StatusOK)
-			err = json.NewEncoder(w).Encode(ret)
-			if err != nil {
-				log.Write("error", err.Error())
-				respond(w, http.StatusInternalServerError, err.Error())
-				return
-			}
-
-			log.Write("post", "created slug: %s", slug)
-
-		case http.MethodDelete:
-			err := store.DeleteLink(slug)
-			if err != nil {
-				log.Write("error", err.Error())
-				respond(w, http.StatusBadRequest, err.Error())
-			}
-
-			respond(w, http.StatusOK, "deleted")
-			log.Write("delete", "slug %s", slug)
-
-		default:
-			respond(w, http.StatusMethodNotAllowed, "")
-		}
 	}
 }
 

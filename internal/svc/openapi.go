@@ -3,12 +3,12 @@ package svc
 import (
 	"net/http"
 
-	"github.com/aexvir/lnk/api"
+	"github.com/aexvir/lnk/proto"
 )
 
 func OpenapiSchemaHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(api.Schema)
+	_, _ = w.Write(proto.Schema)
 }
 
 var docspage = `
@@ -24,7 +24,7 @@ var docspage = `
 	</style>
   </head>
   <body>
-    <elements-api apiDescriptionUrl="/api/schema.json" router="hash" hideTryIt="true" />
+    <elements-api apiDescriptionUrl="/api/schema.yaml" router="hash" hideTryIt="true" />
   </body>
 </html>
 `

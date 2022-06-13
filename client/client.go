@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/aexvir/lnk/api"
+	"github.com/aexvir/lnk/proto"
 )
 
 // Lnk is a client for the lnk service.
@@ -39,8 +39,8 @@ func NewLnkClient(opts ...ClientOpt) (*Lnk, error) {
 }
 
 // CreateLink for a target url with an optional custom slug.
-func (lc *Lnk) CreateLink(target string, slug *string) (*api.LinkResp, error) {
-	req := api.CreateLinkReq{
+func (lc *Lnk) CreateLink(target string, slug *string) (*proto.LinkId, error) {
+	req := proto.CreateLinkReq{
 		Target: target,
 		Slug:   slug,
 	}
@@ -59,7 +59,7 @@ func (lc *Lnk) CreateLink(target string, slug *string) (*api.LinkResp, error) {
 		return nil, fmt.Errorf("request failed; status: %d", resp.StatusCode)
 	}
 
-	var link api.LinkResp
+	var link proto.LinkId
 	err = json.NewDecoder(resp.Body).Decode(&link)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding response: %w", err)
@@ -69,7 +69,7 @@ func (lc *Lnk) CreateLink(target string, slug *string) (*api.LinkResp, error) {
 }
 
 // GetLink for a specific slug.
-func (lc *Lnk) GetLink(slug string) (*api.Link, error) {
+func (lc *Lnk) GetLink(slug string) (*proto.LinkDetails, error) {
 	url := fmt.Sprintf("%s/api/links/%s", lc.baseurl, slug)
 
 	resp, err := lc.client.Get(url)
@@ -79,7 +79,7 @@ func (lc *Lnk) GetLink(slug string) (*api.Link, error) {
 
 	switch resp.StatusCode {
 	case http.StatusOK:
-		var link api.Link
+		var link proto.LinkDetails
 		err = json.NewDecoder(resp.Body).Decode(&link)
 		if err != nil {
 			return nil, fmt.Errorf("error decoding response: %w", err)

@@ -1,0 +1,147 @@
+# Generated with protoc-gen-openapi
+# https://github.com/google/gnostic/tree/master/cmd/protoc-gen-openapi
+
+openapi: 3.0.3
+info:
+    title: Lnk API
+    description: Lnk is a basic url shortener that can be managed via rest api calls
+    contact:
+        name: Alex Viscreanu
+        url: https://github.com/aexvir/lnk
+    version: 0.1.0
+paths:
+    /api/links:
+        get:
+            tags:
+                - Links
+            summary: List all links
+            description: Get a list of all the shortened links as well as metadata about their usage.
+            operationId: Links_ListLinks
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/LinkList'
+        post:
+            tags:
+                - Links
+            summary: Create shortened link
+            description: Create a new shortened link that when visited, it will redirect to the target url.
+            operationId: Links_CreateLink
+            requestBody:
+                content:
+                    application/json:
+                        schema:
+                            $ref: '#/components/schemas/CreateLinkReq'
+                required: true
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/LinkId'
+    /api/links/{slug}:
+        get:
+            tags:
+                - Links
+            summary: Get details of a link
+            description: |-
+                Obtain details for a shortened link, like how many times it was visited and its daily
+                 visits breakdown.
+            operationId: Links_GetLink
+            parameters:
+                - name: slug
+                  in: path
+                  description: Identifier of a redirecting link. Used as the url path for redirects.
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                $ref: '#/components/schemas/LinkDetails'
+        delete:
+            tags:
+                - Links
+            summary: Delete shortened link
+            description: Delete the specified shortened link as well including its metadata.
+            operationId: Links_DeleteLink
+            parameters:
+                - name: slug
+                  in: path
+                  description: Identifier of a redirecting link. Used as the url path for redirects.
+                  required: true
+                  schema:
+                    type: string
+            responses:
+                "200":
+                    description: OK
+                    content: {}
+components:
+    schemas:
+        CreateLinkReq:
+            type: object
+            properties:
+                target:
+                    example: 'http://google.com'
+                    type: string
+                    description: Target url where to redirect when visiting the shortened link.
+                slug:
+                    example: 'search'
+                    type: string
+                    description: Custom slug to use on the shortened link instead of generating a random one.
+        DailyHits:
+            type: object
+            properties:
+                date:
+                    example: '2022-06-11'
+                    type: string
+                    description: ISO8601 formatted date for the day which hits are returned.
+                hits:
+                    example: 42
+                    type: integer
+                    description: Amount of hits for the link on the specified date.
+                    format: uint64
+        LinkDetails:
+            type: object
+            properties:
+                slug:
+                    example: 'b8f8ea'
+                    type: string
+                    description: Identifier of a redirecting link. Used as the url path for redirects.
+                target:
+                    example: 'http://google.com'
+                    type: string
+                    description: Target url where the link is redirecting to.
+                hits:
+                    example: 42
+                    type: integer
+                    description: Total amount of hits for this link.
+                    format: uint64
+                stats:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/DailyHits'
+                    description: Daily breakdown of the hits.
+        LinkId:
+            type: object
+            properties:
+                slug:
+                    example: 'b8f8ea'
+                    type: string
+                    description: Identifier of a redirecting link. Used as the url path for redirects.
+        LinkList:
+            type: object
+            properties:
+                links:
+                    type: array
+                    items:
+                        $ref: '#/components/schemas/LinkDetails'
+tags:
+    - name: Links

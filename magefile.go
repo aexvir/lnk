@@ -24,6 +24,11 @@ func Run(ctx context.Context) error {
 	return run(ctx, "go", "run", ".")
 }
 
+// Generate proto definitions and code
+func Generate(ctx context.Context) error {
+	return run(ctx, "go", "generate", "./...")
+}
+
 // Format codebase using gofmt, goimports and prettier
 func Format(ctx context.Context) error {
 	errfmt := run(ctx, "gofmt", "-w", "-s", ".")
