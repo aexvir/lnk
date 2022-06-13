@@ -1,0 +1,202 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Lnk API",
+    "version": "0.1.0",
+    "description": "Lnk is a basic url shortener that can be managed via rest api calls"
+  },
+  "paths": {
+    "/api/links": {
+      "get": {
+        "description": "get a list of all the shortened links as well as metadata about their usage",
+        "tags": [
+          "links"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkListResp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "description": "create a new shortened link",
+        "tags": [
+          "links"
+        ],
+        "parameters": [
+          {
+            "name": "target",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "target url where to redirect when visiting the shortened link",
+            "example": "https://google.com"
+          },
+          {
+            "name": "slug",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "custom slug to use on the shortened link instead of generating a random one"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkResp"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "invalid payload"
+          }
+        }
+      }
+    },
+    "/api/links/{slug}": {
+      "get": {
+        "description": "obtain details for a shortened link",
+        "tags": [
+          "links"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "b8f8ea"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkDetailsResp"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "description": "delete the specified shortened link as well as it's metadata",
+        "tags": [
+          "links"
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "b8f8ea"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {}
+          },
+          "404": {
+            "description": "Shortened link not found"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DailyHits": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "iso8601 formatted date for the day which hits are returned",
+            "example": "2022-06-11"
+          },
+          "hits": {
+            "type": "integer",
+            "description": "amount of hits for the link on the specified date",
+            "format": "uint64",
+            "example": 42
+          }
+        }
+      },
+      "LinkDetailsResp": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "example": "b8f8ea",
+            "type": "string",
+            "description": "slug of a shortened link"
+          },
+          "target": {
+            "example": "https://google.com",
+            "type": "string",
+            "description": "target url where the link is redirecting to"
+          },
+          "hits": {
+            "type": "integer",
+            "description": "total amount of hits for this link",
+            "format": "uint64",
+            "example": 42
+          },
+          "histogram": {
+            "type": "array",
+            "description": "daily breakdown of the hits",
+            "items": {
+              "$ref": "#/components/schemas/DailyHits"
+            }
+          }
+        }
+      },
+      "LinkListResp": {
+        "type": "object",
+        "properties": {
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkDetailsResp"
+            }
+          }
+        }
+      },
+      "LinkResp": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "example": "https://lnk.com/b8f8ea"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "links",
+      "description": "managing links"
+    }
+  ]
+}
