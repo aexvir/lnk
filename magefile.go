@@ -5,13 +5,16 @@ package main
 // notest // task orchestrator, not part of the service code
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/princjef/mageutil/bintool"
 )
 
 // Build the lnk server binary
@@ -19,7 +22,7 @@ func Build(ctx context.Context) error {
 	return run(ctx, "go", "build", "-o", "bin/lnkctl", ".")
 }
 
-// Run the lnk server
+// Run the lnk server without building it
 func Run(ctx context.Context) error {
 	return run(ctx, "go", "run", ".")
 }
@@ -43,6 +46,37 @@ func Format(ctx context.Context) error {
 
 	color.Green("looking sweet!")
 	return nil
+}
+
+// lint the code using go mod tidy and golangci-lint
+func Lint(ctx context.Context) error {
+	// run go mod tidy and check differences
+	gomod, _ := os.ReadFile("go.mod")
+	gosum, _ := os.ReadFile("go.sum")
+
+	err := run(ctx, "go", "mod", "tidy", "-v")
+	if err != nil {
+		return err
+	}
+
+	newmod, _ := os.ReadFile("go.mod")
+	newsum, _ := os.ReadFile("go.sum")
+
+	if !bytes.Equal(gomod, newmod) || !bytes.Equal(gosum, newsum) {
+		return errors.New("differences found; fixed go module")
+	}
+
+	color.Green("no differences found")
+
+	// run golangci-lint
+	gci, _ := bintool.New(
+		"golangci-lint{{.BinExt}}",
+		"1.46.2",
+		"https://github.com/golangci/golangci-lint/releases/download/v{{.Version}}/golangci-lint-{{.Version}}-{{.GOOS}}-{{.GOARCH}}{{.ArchiveExt}}",
+	)
+	gci.Ensure()
+
+	return gci.Command("run --max-same-issues 0 --max-issues-per-linter 0").Run()
 }
 
 // Test the whole codebased
